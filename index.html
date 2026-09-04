@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* Стили такие же, как в прошлом коде, они не изменились */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         * { -webkit-tap-highlight-color: transparent; }
         body {
@@ -1346,9 +1347,7 @@
 
                 if (error) throw error;
 
-                // Очищаем поле
                 textInput.value = '';
-                // Обновляем список комментариев
                 loadComments(newsId);
                 btn.textContent = 'Отправлено ✅';
                 setTimeout(() => { btn.textContent = 'Отправить'; btn.disabled = false; }, 2000);
@@ -1404,7 +1403,7 @@
                 console.log('Нет голосования для этой новости');
             }
             
-            // === КОММЕНТАРИИ (без смайла) ===
+            // === КОММЕНТАРИИ ===
             html += `<div class="comments-section" id="commentsSection">`;
             html += `<div class="comments-title">Комментарии</div>`;
             html += `<div id="commentsList"></div>`;
@@ -1423,16 +1422,14 @@
             newsOverlay.classList.add('open');
             document.body.style.overflow = 'hidden';
 
-            // Загружаем комментарии для этой новости
             loadComments(news.id);
             
-            // Обработчик отправки комментария
             document.getElementById('sendCommentBtn').addEventListener('click', function() {
                 const newsId = parseInt(this.dataset.newsId);
                 sendComment(newsId);
             });
 
-            // Обработчики голосования (если есть)
+            // Привязываем голосования
             attachPollHandlers();
         }
 
@@ -1466,7 +1463,7 @@
         }
 
         // ============================================
-        // 🗳️ ГОЛОСОВАНИЯ
+        // 🗳️ ГОЛОСОВАНИЯ (исправлено)
         // ============================================
         let isVotingInProgress = false;
 
@@ -1526,14 +1523,17 @@
         }
 
         function attachPollHandlers() {
+            // Удаляем старые обработчики через clone
             document.querySelectorAll('.poll-option:not(.disabled)').forEach(el => {
                 const newEl = el.cloneNode(true);
                 el.parentNode.replaceChild(newEl, el);
             });
 
+            // Вешаем новые обработчики
             document.querySelectorAll('.poll-option:not(.disabled)').forEach(el => {
                 el.addEventListener('click', handlePollClick);
             });
+            console.log('✅ Обработчики голосования привязаны');
         }
 
         async function handlePollClick(e) {
@@ -1541,8 +1541,17 @@
             const pollId = parseInt(el.dataset.pollId);
             const optionIndex = parseInt(el.dataset.index);
             
-            if (isVotingInProgress) return;
-            if (localStorage.getItem('poll_voted_' + pollId) === 'true') return;
+            if (isVotingInProgress) {
+                console.log('Голосование уже выполняется');
+                return;
+            }
+            
+            if (localStorage.getItem('poll_voted_' + pollId) === 'true') {
+                console.log('Вы уже голосовали');
+                return;
+            }
+
+            console.log(`Голосую за вариант ${optionIndex} в опросе ${pollId}`);
 
             isVotingInProgress = true;
             el.style.opacity = '0.5';
@@ -1556,10 +1565,7 @@
                     .single();
 
                 if (fetchError || !poll) {
-                    isVotingInProgress = false;
-                    el.style.opacity = '1';
-                    el.style.pointerEvents = 'auto';
-                    return;
+                    throw new Error('Не удалось загрузить голосование');
                 }
 
                 const votes = poll.votes || poll.options.map(() => 0);
@@ -1570,19 +1576,10 @@
                     .update({ votes: votes })
                     .eq('id', pollId);
 
-                if (updateError) {
-                    isVotingInProgress = false;
-                    el.style.opacity = '1';
-                    el.style.pointerEvents = 'auto';
-                    return;
-                }
+                if (updateError) throw updateError;
 
                 localStorage.setItem('poll_voted_' + pollId, 'true');
                 localStorage.setItem('poll_selected_' + pollId, String(optionIndex));
-
-                isVotingInProgress = false;
-                el.style.opacity = '1';
-                el.style.pointerEvents = 'auto';
 
                 const { data: newPoll } = await supabase
                     .from('polls')
@@ -1595,11 +1592,16 @@
                     if (container) {
                         const newHtml = renderPoll(newPoll);
                         container.outerHTML = newHtml;
-                        attachPollHandlers();
+                        // Перепривязываем обработчики после обновления DOM
+                        requestAnimationFrame(() => {
+                            attachPollHandlers();
+                        });
                     }
                 }
             } catch (e) {
                 console.error('Ошибка голосования:', e);
+                alert('Не удалось проголосовать. Попробуйте позже.');
+            } finally {
                 isVotingInProgress = false;
                 el.style.opacity = '1';
                 el.style.pointerEvents = 'auto';
@@ -1689,7 +1691,7 @@
         }
 
         // ============================================
-        // 🗳️ ОТКРЫТИЕ ГОЛОСОВАНИЯ
+        // 🗳️ ОТКРЫТИЕ ГОЛОСОВАНИЯ (ОВЕРЛЕЙ)
         // ============================================
         const pollOverlay = document.getElementById('pollOverlay');
         const pollOverlayContent = document.getElementById('pollOverlayContent');
@@ -1758,9 +1760,10 @@
             pollOverlay.classList.add('open');
             document.body.style.overflow = 'hidden';
 
+            // Даём время на рендер, затем привязываем обработчики
             setTimeout(() => {
                 attachPollHandlers();
-            }, 100);
+            }, 150);
         }
 
         function closePollOverlay() {
