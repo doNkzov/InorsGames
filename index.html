@@ -299,22 +299,28 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // ===== ВСПОМОГАТЕЛЬНЫЕ =====
-        function formatDateShort(dateStr) { if(!dateStr) return ''; try { const d = new Date(dateStr); if(isNaN(d)) return dateStr; const diff = Math.floor((Date.now() - d) / 60000); if(diff<1) return 'Только что'; if(diff<60) return diff+' мин'; if(diff<1440) return Math.floor(diff/60)+' ч'; if(diff<43200) return Math.floor(diff/1440)+' д'; return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}); } catch { return dateStr; } }
-        function formatDate(dateStr) { if(!dateStr) return 'Без даты'; try { const d = new Date(dateStr); if(isNaN(d)) return dateStr; return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); } catch { return dateStr; } }
+        function formatDateShort(dateStr) {
+            if(!dateStr) return '';
+            try { const d = new Date(dateStr); if(isNaN(d)) return dateStr; const diff = Math.floor((Date.now() - d) / 60000); if(diff<1) return 'Только что'; if(diff<60) return diff+' мин'; if(diff<1440) return Math.floor(diff/60)+' ч'; if(diff<43200) return Math.floor(diff/1440)+' д'; return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'}); } catch { return dateStr; }
+        }
+        function formatDate(dateStr) {
+            if(!dateStr) return 'Без даты';
+            try { const d = new Date(dateStr); if(isNaN(d)) return dateStr; return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}); } catch { return dateStr; }
+        }
         async function getIP() { try { const r = await fetch('https://api.ipify.org?format=json'); const d = await r.json(); return d.ip; } catch(e) { return 'unknown'; } }
         function containsLink(text) { return /(https?:\/\/[^\s]+|www\.[^\s]+)/gi.test(text); }
 
-        // ===== НАВИГАЦИЯ (ЧПУ) =====
+        // ===== НАВИГАЦИЯ (ХЕШ-МАРШРУТЫ) =====
         const burger = document.getElementById('burger');
         const dropdown = document.getElementById('dropdownMenu');
         const menuLinks = dropdown.querySelectorAll('a[data-page]');
-        const pages = { 
-            home: document.getElementById('page-home'), 
-            games: document.getElementById('page-games'), 
-            news: document.getElementById('page-news'), 
-            polls: document.getElementById('page-polls') 
+        const pages = {
+            home: document.getElementById('page-home'),
+            games: document.getElementById('page-games'),
+            news: document.getElementById('page-news'),
+            polls: document.getElementById('page-polls')
         };
-        
+
         function closeMenu() {
             burger.classList.remove('active');
             dropdown.classList.remove('open');
@@ -329,59 +335,69 @@
             if (!dropdown.contains(e.target) && !burger.contains(e.target)) closeMenu();
         });
 
-        function navigate(path) {
-            history.pushState(null, '', path);
-            router();
+        function navigateHash(path) {
+            if (path.startsWith('/')) path = path.slice(1);
+            window.location.hash = path;
+            routerHash();
         }
 
-        function router() {
-            const path = window.location.pathname;
+        function routerHash() {
             closeMenu();
-            if (path === '/' || path === '/home') {
-                showPage('home');
-            } else if (path === '/games') {
+            const hash = window.location.hash.slice(1) || '';
+            let pageId = 'home';
+            let detailId = null;
+            let detailType = null;
+
+            if (hash === '' || hash === 'home') {
+                pageId = 'home';
+            } else if (hash === 'games') {
+                pageId = 'games';
                 loadGames();
-                showPage('games');
-            } else if (path === '/news') {
+            } else if (hash === 'news') {
+                pageId = 'news';
                 loadNews();
-                showPage('news');
-            } else if (path === '/polls') {
+            } else if (hash === 'polls') {
+                pageId = 'polls';
                 loadPolls();
-                showPage('polls');
-            } else if (path.startsWith('/game/')) {
-                const id = path.split('/')[2];
-                showPage('games');
+            } else if (hash.startsWith('game/')) {
+                pageId = 'games';
+                detailType = 'game';
+                detailId = hash.split('/')[1];
                 if (allGamesData.length === 0) {
-                    loadGames().then(() => openGameDetail(id));
+                    loadGames().then(() => openGameDetail(detailId));
                 } else {
-                    openGameDetail(id);
+                    openGameDetail(detailId);
                 }
-            } else if (path.startsWith('/news/')) {
-                const id = path.split('/')[2];
-                showPage('news');
+            } else if (hash.startsWith('news/')) {
+                pageId = 'news';
+                detailType = 'news';
+                detailId = hash.split('/')[1];
                 if (allNewsData.length === 0) {
-                    loadNews().then(() => openNewsDetail(id));
+                    loadNews().then(() => openNewsDetail(detailId));
                 } else {
-                    openNewsDetail(id);
+                    openNewsDetail(detailId);
                 }
-            } else if (path.startsWith('/poll/')) {
-                const id = path.split('/')[2];
-                showPage('polls');
+            } else if (hash.startsWith('poll/')) {
+                pageId = 'polls';
+                detailType = 'poll';
+                detailId = hash.split('/')[1];
                 if (allPollsData.length === 0) {
-                    loadPolls().then(() => openPollDetail(id));
+                    loadPolls().then(() => openPollDetail(detailId));
                 } else {
-                    openPollDetail(id);
+                    openPollDetail(detailId);
                 }
             } else {
-                showPage('home');
+                pageId = 'home';
             }
+
+            showPage(pageId);
         }
 
         function showPage(pageId) {
             menuLinks.forEach(l => l.classList.remove('active-link'));
-            menuLinks.forEach(l => { if(l.dataset.page === pageId) l.classList.add('active-link'); });
+            menuLinks.forEach(l => { if (l.dataset.page === pageId) l.classList.add('active-link'); });
             Object.keys(pages).forEach(key => {
-                if(pages[key]) pages[key].classList.toggle('active', key === pageId);
+                if (pages[key]) pages[key].classList.toggle('active', key === pageId);
             });
         }
 
@@ -389,16 +405,17 @@
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const pageId = link.dataset.page;
-                let path = '/';
-                if (pageId === 'games') path = '/games';
-                else if (pageId === 'news') path = '/news';
-                else if (pageId === 'polls') path = '/polls';
-                else if (pageId === 'home') path = '/home';
-                navigate(path);
+                let hash = '';
+                if (pageId === 'games') hash = 'games';
+                else if (pageId === 'news') hash = 'news';
+                else if (pageId === 'polls') hash = 'polls';
+                else if (pageId === 'home') hash = '';
+                window.location.hash = hash;
+                routerHash();
             });
         });
 
-        window.addEventListener('popstate', router);
+        window.addEventListener('hashchange', routerHash);
 
         // ===== ИГРЫ =====
         let allGamesData = [];
@@ -518,7 +535,7 @@
             } catch(e) {}
         }
 
-        // ===== КОММЕНТАРИИ (с модерацией) =====
+        // ===== КОММЕНТАРИИ =====
         async function sendComment(newsId) {
             const author = document.getElementById('commentAuthor')?.value.trim() || 'Аноним';
             const content = document.getElementById('commentText')?.value.trim();
@@ -526,13 +543,12 @@
             if(containsLink(content)) { alert('Ссылки запрещены'); return; }
             try {
                 const ip = await getIP();
-                // Комментарий отправляется со статусом 'pending' — ожидает модерации
                 const { error } = await supabase.from('comments').insert([
                     { news_id: newsId, author, content, ip, status: 'pending' }
                 ]);
                 if(error) throw error;
                 document.getElementById('commentText').value = '';
-                alert('Комментарий отправлен на модерацию и появится после одобрения');
+                alert('Комментарий отправлен на модерацию');
             } catch(e) { alert('Ошибка отправки'); }
         }
 
@@ -544,7 +560,7 @@
                     .from('comments')
                     .select('*')
                     .eq('news_id', newsId)
-                    .eq('status', 'approved')   // только одобренные
+                    .eq('status', 'approved')
                     .order('created_at', { ascending: false });
                 if(error) throw error;
                 if(data && data.length) {
@@ -651,11 +667,8 @@
 
         // ===== ПОДЕЛИТЬСЯ =====
         function shareContent(type, id) {
-            const baseUrl = window.location.origin;
-            let url = baseUrl;
-            if(type === 'game') url += `/game/${id}`;
-            else if(type === 'news') url += `/news/${id}`;
-            else if(type === 'poll') url += `/poll/${id}`;
+            const baseUrl = window.location.origin + window.location.pathname;
+            let url = baseUrl + '#' + type + '/' + id;
             if(navigator.share) {
                 navigator.share({ title: 'Inors Games', url: url }).catch(()=>{});
             } else {
@@ -672,27 +685,30 @@
             const gameCard = e.target.closest('.game-card[data-id]');
             if(gameCard) {
                 const id = gameCard.dataset.id;
-                navigate(`/game/${id}`);
+                window.location.hash = 'game/' + id;
+                routerHash();
                 return;
             }
             const newsItem = e.target.closest('.news-item[data-id]');
             if(newsItem) {
                 const id = newsItem.dataset.id;
-                navigate(`/news/${id}`);
+                window.location.hash = 'news/' + id;
+                routerHash();
                 return;
             }
             const pollItem = e.target.closest('.poll-item[data-id]');
             if(pollItem) {
                 const id = pollItem.dataset.id;
-                navigate(`/poll/${id}`);
+                window.location.hash = 'poll/' + id;
+                routerHash();
                 return;
             }
             const backBtn = e.target.closest('[data-action^="back-"]');
             if(backBtn) {
                 const action = backBtn.dataset.action;
-                if(action === 'back-games') navigate('/games');
-                else if(action === 'back-news') navigate('/news');
-                else if(action === 'back-polls') navigate('/polls');
+                if(action === 'back-games') { window.location.hash = 'games'; routerHash(); }
+                else if(action === 'back-news') { window.location.hash = 'news'; routerHash(); }
+                else if(action === 'back-polls') { window.location.hash = 'polls'; routerHash(); }
                 return;
             }
             const shareBtn = e.target.closest('[data-share]');
@@ -716,7 +732,7 @@
             loadGames();
             loadNews();
             loadPolls();
-            router();
+            routerHash();
         }
         init();
     })();
