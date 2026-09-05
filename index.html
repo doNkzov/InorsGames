@@ -345,8 +345,6 @@
             closeMenu();
             const hash = window.location.hash.slice(1) || '';
             let pageId = 'home';
-            let detailId = null;
-            let detailType = null;
 
             if (hash === '' || hash === 'home') {
                 pageId = 'home';
@@ -361,8 +359,7 @@
                 loadPolls();
             } else if (hash.startsWith('game/')) {
                 pageId = 'games';
-                detailType = 'game';
-                detailId = hash.split('/')[1];
+                const detailId = hash.split('/')[1];
                 if (allGamesData.length === 0) {
                     loadGames().then(() => openGameDetail(detailId));
                 } else {
@@ -370,8 +367,7 @@
                 }
             } else if (hash.startsWith('news/')) {
                 pageId = 'news';
-                detailType = 'news';
-                detailId = hash.split('/')[1];
+                const detailId = hash.split('/')[1];
                 if (allNewsData.length === 0) {
                     loadNews().then(() => openNewsDetail(detailId));
                 } else {
@@ -379,8 +375,7 @@
                 }
             } else if (hash.startsWith('poll/')) {
                 pageId = 'polls';
-                detailType = 'poll';
-                detailId = hash.split('/')[1];
+                const detailId = hash.split('/')[1];
                 if (allPollsData.length === 0) {
                     loadPolls().then(() => openPollDetail(detailId));
                 } else {
